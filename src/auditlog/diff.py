@@ -2,7 +2,8 @@ from __future__ import unicode_literals
 
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Model, NOT_PROVIDED, DateTimeField
+from django.db.models import (
+    Model, NOT_PROVIDED, DateTimeField, DecimalField)
 from django.utils import timezone
 from django.utils.encoding import smart_text
 
@@ -73,7 +74,12 @@ def get_field_value(obj, field):
                 value = timezone.make_naive(value, timezone=timezone.utc)
         except ObjectDoesNotExist:
             value = field.default if field.default is not NOT_PROVIDED else None
-            
+    elif isinstance(field, DecimalField):
+        try:
+            value = field.to_python(getattr(obj, field.name, None))
+        except ObjectDoesNotExist:
+            value = field.default if field.default is not NOT_PROVIDED else None
+
     else:
         try:
             value = getattr(obj, field.name, None)
