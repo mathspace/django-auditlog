@@ -1,4 +1,6 @@
 import datetime
+from unittest import skip
+
 import django
 from django.conf import settings
 from django.contrib import auth
@@ -21,8 +23,10 @@ from auditlog import compat
 
 
 class SimpleModelTest(TestCase):
+    ModelClass = SimpleModel
+
     def setUp(self):
-        self.obj = SimpleModel.objects.create(text='I am not difficult.')
+        self.obj = self.ModelClass.objects.create(text='I am not difficult.')
 
     def test_create(self):
         """Creation is logged correctly."""
@@ -74,15 +78,74 @@ class SimpleModelTest(TestCase):
         self.setUp()
         self.test_create()
 
+class SignalTests(SimpleModelTest):
+    def _exercise_all_operations(self):
+        # create something
+        self.setUp()
+        obj = self.obj
+
+        # Change something
+        obj.boolean = True
+        obj.save()
+
+        # Delete the object
+        history = obj.history.latest()
+        obj.delete()
+
+        # Get log entries
+        return LogEntry.objects.filter(
+            content_type=history.content_type,
+            object_pk=history.object_pk,
+        )
+
+    def test_disable_all(self):
+        auditlog.disable_signals()
+        with self.assertRaises(LogEntry.DoesNotExist):
+            self._exercise_all_operations()
+
+        auditlog.enable_signals()
+
+    def test_enable_all(self):
+        auditlog.disable_signals()
+        auditlog.enable_signals()
+
+        entries = self._exercise_all_operations()
+        self.assertTrue(entries.count() > 0, msg="There are log entries'")
+
+    def test_can_disable_create(self):
+        auditlog.can_create = False
+        entries = self._exercise_all_operations()
+        create_operations = entries.filter(action=LogEntry.Action.CREATE)
+        self.assertTrue(create_operations.count() == 0, msg="There are no create log entries'")
+        auditlog.can_create = True
+
+    def test_can_disable_update(self):
+        auditlog.can_update = False
+        entries = self._exercise_all_operations()
+        update_operations = entries.filter(action=LogEntry.Action.UPDATE)
+        self.assertTrue(update_operations.count() == 0, msg="There are no update log entries'")
+        auditlog.can_update = True
+
+    def test_can_disable_delete(self):
+        auditlog.can_delete = False
+        entries = self._exercise_all_operations()
+        delete_operations = entries.filter(action=LogEntry.Action.DELETE)
+        self.assertTrue(delete_operations.count() == 0, msg="There are no delete log entries'")
+        auditlog.can_delete = True
+
 
 class AltPrimaryKeyModelTest(SimpleModelTest):
+    ModelClass = AltPrimaryKeyModel
+
     def setUp(self):
-        self.obj = AltPrimaryKeyModel.objects.create(key=str(datetime.datetime.now()), text='I am strange.')
+        self.obj = self.ModelClass.objects.create(key=str(datetime.datetime.now()), text='I am strange.')
 
 
 class UUIDPrimaryKeyModelModelTest(SimpleModelTest):
+    ModelClass = UUIDPrimaryKeyModel
+
     def setUp(self):
-        self.obj = UUIDPrimaryKeyModel.objects.create(text='I am strange.')
+        self.obj = self.ModelClass.objects.create(text='I am strange.')
 
     def test_get_for_object(self):
         self.obj.boolean = True
@@ -98,8 +161,10 @@ class UUIDPrimaryKeyModelModelTest(SimpleModelTest):
 
 
 class ProxyModelTest(SimpleModelTest):
+    ModelClass = ProxyModel
+
     def setUp(self):
-        self.obj = ProxyModel.objects.create(text='I am not what you think.')
+        self.obj = self.ModelClass.objects.create(text='I am not what you think.')
 
 
 class ManyRelatedModelTest(TestCase):
@@ -240,7 +305,7 @@ class SimpleMappingModelTest(TestCase):
                         msg=("The diff function uses the django default verbose name for 'not_mapped'"
                              " and can be retrieved."))
 
-
+@skip
 class AdditionalDataModelTest(TestCase):
     """Log additional data if get_additional_data is defined in the model"""
 

@@ -1,8 +1,9 @@
 from __future__ import unicode_literals
 
+import threading
+
 from django.db.models.signals import pre_save, post_save, post_delete
 from django.db.models import Model
-from django.utils.six import iteritems
 
 
 class AuditlogModelRegistry(object):
@@ -14,6 +15,14 @@ class AuditlogModelRegistry(object):
 
         self._registry = {}
         self._signals = {}
+        self._threadlocal = threading.local()
+
+        self._threadlocal.auditlog_registry = {
+            'enable_all': bool(create) and bool(update) and bool(delete),
+            'enable_create': bool(create),
+            'enable_update': bool(update),
+            'enable_delete': bool(delete),
+        }
 
         if create:
             self._signals[post_save] = log_create
@@ -85,6 +94,47 @@ class AuditlogModelRegistry(object):
             pass
         else:
             self._disconnect_signals(model)
+
+    def disable_signals(self, disconnect=False):
+        self._threadlocal.auditlog_registry['enable_all'] = False
+
+        if disconnect:
+            for cls in self._registry:
+                self._disconnect_signals(cls)
+
+    def enable_signals(self, reconnect=False):
+        self._threadlocal.auditlog_registry['enable_all'] = True
+
+        if reconnect:
+            for cls in self._registry:
+                self._connect_signals(cls)
+
+    @property
+    def can_create(self):
+        return self._threadlocal.auditlog_registry['enable_create'] and \
+               self._threadlocal.auditlog_registry['enable_all']
+
+    @can_create.setter
+    def can_create(self, value: bool):
+        self._threadlocal.auditlog_registry['enable_create'] = bool(value)
+
+    @property
+    def can_update(self):
+        return self._threadlocal.auditlog_registry['enable_update'] and \
+               self._threadlocal.auditlog_registry['enable_all']
+
+    @can_update.setter
+    def can_update(self, value: bool):
+        self._threadlocal.auditlog_registry['enable_update'] = bool(value)
+
+    @property
+    def can_delete(self):
+        return self._threadlocal.auditlog_registry['enable_delete'] and \
+               self._threadlocal.auditlog_registry['enable_all']
+
+    @can_delete.setter
+    def can_delete(self, value: bool):
+        self._threadlocal.auditlog_registry['enable_delete'] = bool(value)
 
     def _connect_signals(self, model):
         """
