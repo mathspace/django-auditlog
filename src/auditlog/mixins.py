@@ -1,6 +1,9 @@
 import json
 
 from django.conf import settings
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
+
 try:
     from django.core import urlresolvers
 except ImportError:
@@ -26,10 +29,11 @@ class LogEntryAdminMixin(object):
             try:
                 link = urlresolvers.reverse(viewname, args=[obj.actor.id])
             except NoReverseMatch:
-                return u'%s' % (obj.actor)
-            return u'<a href="%s">%s</a>' % (link, obj.actor)
+                return obj.actor
+            else:
+                return format_html('<a href="{}">{}</a>', link, obj.actor)
 
-        return 'system'
+        return 'System'
     user_url.allow_tags = True
     user_url.short_description = 'User'
 
@@ -42,7 +46,7 @@ class LogEntryAdminMixin(object):
         except NoReverseMatch:
             return obj.object_repr
         else:
-            return u'<a href="%s">%s</a>' % (link, obj.object_repr)
+            return format_html('<a href="{}">{}</a>', link, obj.object_repr)
     resource_url.allow_tags = True
     resource_url.short_description = 'Resource'
 
@@ -65,8 +69,11 @@ class LogEntryAdminMixin(object):
         msg = '<table><tr><th>#</th><th>Field</th><th>From</th><th>To</th></tr>'
         for i, field in enumerate(sorted(changes), 1):
             value = [i, field] + (['***', '***'] if field == 'password' else changes[field])
-            msg += '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % tuple(value)
+            msg += format_html(
+               '<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>',
+                *value,
+            )
         msg += '</table>'
-        return msg
+        return mark_safe(msg)
     msg.allow_tags = True
     msg.short_description = 'Changes'
