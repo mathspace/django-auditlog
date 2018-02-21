@@ -6,6 +6,13 @@ from django.db.models.signals import pre_save, post_save, post_delete
 from django.db.models import Model
 
 
+class FlagLocals(threading.local):
+    enable_all = True
+    enable_create = True
+    enable_update = True
+    enable_delete = True
+
+
 class AuditlogModelRegistry(object):
     """
     A registry that keeps track of the models that use Auditlog to track changes.
@@ -15,14 +22,12 @@ class AuditlogModelRegistry(object):
 
         self._registry = {}
         self._signals = {}
-        self._threadlocal = threading.local()
 
-        self._threadlocal.auditlog_registry = {
-            'enable_all': bool(create) and bool(update) and bool(delete),
-            'enable_create': bool(create),
-            'enable_update': bool(update),
-            'enable_delete': bool(delete),
-        }
+        self.flag = FlagLocals()
+        self.flag.enable_all = bool(create) and bool(update) and bool(delete)
+        self.flag.enable_create = bool(create)
+        self.flag.enable_update = bool(update)
+        self.flag.enable_delete = bool(delete)
 
         if create:
             self._signals[post_save] = log_create
@@ -96,14 +101,14 @@ class AuditlogModelRegistry(object):
             self._disconnect_signals(model)
 
     def disable_signals(self, disconnect=False):
-        self._threadlocal.auditlog_registry['enable_all'] = False
+        self.flag.enable_all = False
 
         if disconnect:
             for cls in self._registry:
                 self._disconnect_signals(cls)
 
     def enable_signals(self, reconnect=False):
-        self._threadlocal.auditlog_registry['enable_all'] = True
+        self.flag.enable_all = True
 
         if reconnect:
             for cls in self._registry:
@@ -111,30 +116,27 @@ class AuditlogModelRegistry(object):
 
     @property
     def can_create(self):
-        return self._threadlocal.auditlog_registry['enable_create'] and \
-               self._threadlocal.auditlog_registry['enable_all']
+        return self.flag.enable_create and self.flag.enable_all
 
     @can_create.setter
     def can_create(self, value: bool):
-        self._threadlocal.auditlog_registry['enable_create'] = bool(value)
+        self.flag.enable_create = bool(value)
 
     @property
     def can_update(self):
-        return self._threadlocal.auditlog_registry['enable_update'] and \
-               self._threadlocal.auditlog_registry['enable_all']
+        return self.flag.enable_update and self.flag.enable_all
 
     @can_update.setter
     def can_update(self, value: bool):
-        self._threadlocal.auditlog_registry['enable_update'] = bool(value)
+        self.flag.enable_update = bool(value)
 
     @property
     def can_delete(self):
-        return self._threadlocal.auditlog_registry['enable_delete'] and \
-               self._threadlocal.auditlog_registry['enable_all']
+        return self.flag.enable_delete and self.flag.enable_all
 
     @can_delete.setter
     def can_delete(self, value: bool):
-        self._threadlocal.auditlog_registry['enable_delete'] = bool(value)
+        self.flag.enable_delete = bool(value)
 
     def _connect_signals(self, model):
         """
