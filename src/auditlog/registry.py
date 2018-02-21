@@ -29,14 +29,14 @@ class AuditlogModelRegistry(object):
         self._registry = {}
         self._signals = {}
 
+        self.flags = FlagLocals()
+        self.flags.enable_all = bool(create) and bool(update) and bool(delete)
+        self.flags.enable_create = bool(create)
+        self.flags.enable_update = bool(update)
+        self.flags.enable_delete = bool(delete)
+
         if user_settings.get('disable_auditlog', False):
             return
-
-        self.flag = FlagLocals()
-        self.flag.enable_all = bool(create) and bool(update) and bool(delete)
-        self.flag.enable_create = bool(create)
-        self.flag.enable_update = bool(update)
-        self.flag.enable_delete = bool(delete)
 
         if create:
             self._signals[post_save] = log_create
@@ -134,14 +134,14 @@ class AuditlogModelRegistry(object):
             self._disconnect_signals(model)
 
     def disable_signals(self, disconnect=False):
-        self.flag.enable_all = False
+        self.flags.enable_all = False
 
         if disconnect:
             for cls in self._registry:
                 self._disconnect_signals(cls)
 
     def enable_signals(self, reconnect=False):
-        self.flag.enable_all = True
+        self.flags.enable_all = True
 
         if reconnect:
             for cls in self._registry:
@@ -149,27 +149,27 @@ class AuditlogModelRegistry(object):
 
     @property
     def can_create(self):
-        return self.flag.enable_create and self.flag.enable_all
+        return self.flags.enable_create and self.flags.enable_all
 
     @can_create.setter
     def can_create(self, value: bool):
-        self.flag.enable_create = bool(value)
+        self.flags.enable_create = bool(value)
 
     @property
     def can_update(self):
-        return self.flag.enable_update and self.flag.enable_all
+        return self.flags.enable_update and self.flags.enable_all
 
     @can_update.setter
     def can_update(self, value: bool):
-        self.flag.enable_update = bool(value)
+        self.flags.enable_update = bool(value)
 
     @property
     def can_delete(self):
-        return self.flag.enable_delete and self.flag.enable_all
+        return self.flags.enable_delete and self.flags.enable_all
 
     @can_delete.setter
     def can_delete(self, value: bool):
-        self.flag.enable_delete = bool(value)
+        self.flags.enable_delete = bool(value)
 
     def _connect_signals(self, model):
         """
