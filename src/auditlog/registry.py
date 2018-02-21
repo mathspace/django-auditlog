@@ -2,15 +2,21 @@ from __future__ import unicode_literals
 
 import threading
 
+from django.conf import settings
 from django.db.models.signals import pre_save, post_save, post_delete
 from django.db.models import Model
 
 
+user_settings = getattr(settings, 'AUDITLOG', {
+    'disable_auditlog': False
+})
+
+
 class FlagLocals(threading.local):
-    enable_all = True
-    enable_create = True
-    enable_update = True
-    enable_delete = True
+    enable_all = user_settings.get('enable_all', True)
+    enable_create = user_settings.get('enable_create', True)
+    enable_update = user_settings.get('enable_update', True)
+    enable_delete = user_settings.get('enable_delete', True)
 
 
 class AuditlogModelRegistry(object):
@@ -22,6 +28,9 @@ class AuditlogModelRegistry(object):
 
         self._registry = {}
         self._signals = {}
+
+        if user_settings.get('disable_auditlog', False):
+            return
 
         self.flag = FlagLocals()
         self.flag.enable_all = bool(create) and bool(update) and bool(delete)
@@ -142,6 +151,9 @@ class AuditlogModelRegistry(object):
         """
         Connect signals for the model.
         """
+        if user_settings.get('disable_auditlog', False):
+            return
+
         for signal in self._signals:
             receiver = self._signals[signal]
             signal.connect(receiver, sender=model, dispatch_uid=self._dispatch_uid(signal, model))
@@ -150,6 +162,9 @@ class AuditlogModelRegistry(object):
         """
         Disconnect signals for the model.
         """
+        if user_settings.get('disable_auditlog', False):
+            return
+
         for signal, receiver in self._signals.items():
             signal.disconnect(sender=model, dispatch_uid=self._dispatch_uid(signal, model))
 
