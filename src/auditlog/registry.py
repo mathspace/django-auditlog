@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import threading
 
 from django.conf import settings
-from django.db.models.signals import pre_save, post_save, post_delete
+from django.db.models.signals import pre_save, post_save, post_delete, m2m_changed
 from django.db.models import Model
 
 
@@ -24,7 +24,7 @@ class AuditlogModelRegistry(object):
     A registry that keeps track of the models that use Auditlog to track changes.
     """
     def __init__(self, create=True, update=True, delete=True, custom=None):
-        from auditlog.receivers import log_create, log_update, log_delete
+        from auditlog.receivers import log_create, log_update, log_delete, log_m2m_changed
 
         self._registry = {}
         self._signals = {}
@@ -44,6 +44,8 @@ class AuditlogModelRegistry(object):
             self._signals[pre_save] = log_update
         if delete:
             self._signals[post_delete] = log_delete
+
+        self._signals[m2m_changed] = log_m2m_changed
 
         if custom is not None:
             self._signals.update(custom)
@@ -74,6 +76,28 @@ class AuditlogModelRegistry(object):
             # We need to return the class, as the decorator is basically
             # syntactic sugar for:
             # MyClass = auditlog.register(MyClass)
+            return cls
+
+        if model is None:
+            # If we're being used as a decorator, return a callable with the
+            # wrapper.
+            return lambda cls: registrar(cls)
+        else:
+            # Otherwise, just register the model.
+            registrar(model)
+
+    def register_m2m(self, model=None, **kwargs):
+        def registrar(cls):
+            """Register models for a given class."""
+            if not issubclass(cls, Model):
+                raise TypeError("Supplied model is not a valid model.")
+
+            if user_settings.get('disable_auditlog', False):
+                return
+
+            receiver = self._signals[m2m_changed]
+            m2m_changed.connect(receiver, sender=model,
+                                dispatch_uid=self._dispatch_uid(m2m_changed, model))
             return cls
 
         if model is None:
