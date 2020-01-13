@@ -11,7 +11,6 @@ from django.db import models
 from django.db.models import QuerySet, Q
 from django.utils import formats, timezone
 from django.utils.encoding import smart_text
-from django.utils.six import iteritems, integer_types
 from django.utils.translation import ugettext_lazy as _
 
 from django.contrib.postgres.fields.jsonb import JSONField
@@ -43,7 +42,7 @@ class LogEntryManager(models.Manager):
             kwargs.setdefault('object_pk', pk)
             kwargs.setdefault('object_repr', smart_text(instance))
 
-            if isinstance(pk, integer_types):
+            if isinstance(pk, int):
                 kwargs.setdefault('object_id', pk)
 
             get_additional_data = getattr(instance, 'get_additional_data', None)
@@ -78,7 +77,7 @@ class LogEntryManager(models.Manager):
         content_type = ContentType.objects.get_for_model(instance.__class__)
         pk = self._get_pk_value(instance)
 
-        if isinstance(pk, integer_types):
+        if isinstance(pk, int):
             return self.filter(content_type=content_type, object_id=pk)
         else:
             return self.filter(content_type=content_type, object_pk=smart_text(pk))
@@ -98,7 +97,7 @@ class LogEntryManager(models.Manager):
         content_type = ContentType.objects.get_for_model(queryset.model)
         primary_keys = list(queryset.values_list(queryset.model._meta.pk.name, flat=True))
 
-        if isinstance(primary_keys[0], integer_types):
+        if isinstance(primary_keys[0], int):
             return self.filter(content_type=content_type).filter(Q(object_id__in=primary_keys)).distinct()
         elif isinstance(queryset.model._meta.pk, models.UUIDField):
             primary_keys = [smart_text(pk) for pk in primary_keys]
@@ -225,7 +224,7 @@ class LogEntry(models.Model):
         """
         substrings = []
 
-        for field, values in iteritems(self.changes_dict):
+        for field, values in self.changes_dict.items():
             substring = smart_text('{field_name:s}{colon:s}{old:s}{arrow:s}{new:s}').format(
                 field_name=field,
                 colon=colon,
@@ -248,7 +247,7 @@ class LogEntry(models.Model):
         model_fields = auditlog.get_model_fields(model._meta.model)
         changes_display_dict = {}
         # grab the changes_dict and iterate through
-        for field_name, values in iteritems(self.changes_dict):
+        for field_name, values in self.changes_dict.items():
             # try to get the field attribute on the model
             try:
                 field = model._meta.get_field(field_name)
