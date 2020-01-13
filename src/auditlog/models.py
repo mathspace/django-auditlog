@@ -10,7 +10,7 @@ from django.core.exceptions import FieldDoesNotExist
 from django.db import models
 from django.db.models import QuerySet, Q
 from django.utils import formats, timezone
-from django.utils.encoding import python_2_unicode_compatible, smart_text
+from django.utils.encoding import smart_text
 from django.utils.six import iteritems, integer_types
 from django.utils.translation import ugettext_lazy as _
 
@@ -140,7 +140,6 @@ class LogEntryManager(models.Manager):
         return pk
 
 
-@python_2_unicode_compatible
 class LogEntry(models.Model):
     """
     Represents an entry in the audit log. The content type is saved along with the textual and numeric (if available)
