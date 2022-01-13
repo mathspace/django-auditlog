@@ -5,7 +5,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import (
     Model, NOT_PROVIDED, DateTimeField, DecimalField)
 from django.utils import timezone
-from django.utils.encoding import smart_text
+from django.utils.encoding import smart_str
 
 
 def track_field(field):
@@ -86,7 +86,7 @@ def get_field_value(obj, field):
         except ObjectDoesNotExist:
             value = field.default if field.default is not NOT_PROVIDED else None
 
-    value_string = smart_text(value)
+    value_string = smart_str(value)
 
     return (value,value_string)
 
@@ -147,7 +147,7 @@ def model_instance_diff(old, new):
             if old_value is None and new_value_string=="":
                 pass
             else:
-                diff[field.name] = (smart_text(old_value), smart_text(new_value))
+                diff[field.name] = (smart_str(old_value), smart_str(new_value))
 
     if len(diff) == 0:
         diff = None
