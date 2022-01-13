@@ -11,7 +11,7 @@ from django.db import models
 from django.db.models import QuerySet, Q
 from django.utils import formats, timezone
 from django.utils.encoding import smart_str
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from dateutil import parser
 from dateutil.tz import gettz
