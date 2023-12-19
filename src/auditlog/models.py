@@ -186,6 +186,7 @@ class LogEntry(models.Model):
         ordering = ['-timestamp']
         verbose_name = _("log entry")
         verbose_name_plural = _("log entries")
+        db_table = "auditlog_logentry_historical"
 
     def __str__(self):
         if self.action == self.Action.CREATE:
